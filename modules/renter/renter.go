@@ -27,6 +27,7 @@ import (
 	"github.com/NebulousLabs/Sia/persist"
 	siasync "github.com/NebulousLabs/Sia/sync"
 	"github.com/NebulousLabs/Sia/types"
+	"github.com/NebulousLabs/ratelimit"
 
 	"github.com/NebulousLabs/threadgroup"
 )
@@ -163,7 +164,7 @@ type Renter struct {
 	// accessed in isolation.
 	downloadHeapMu sync.Mutex         // Used to protect the downloadHeap.
 	downloadHeap   *downloadChunkHeap // A heap of priority-sorted chunks to download.
-	newDownloads   chan struct{}      // Used to notify download heap thread that new downlaods are available.
+	newDownloads   chan struct{}      // Used to notify download loop that new downloads are available.
 
 	// Download history. The history list has its own mutex because it is always
 	// accessed in isolation.
@@ -174,11 +175,14 @@ type Renter struct {
 	downloadHistoryMu sync.Mutex
 
 	// Upload management.
-	newUploads chan *file // Used to send new uploads to the upload heap.
+	uploadHeap uploadHeap
 
 	// List of workers that can be used for uploading and/or downloading.
 	memoryManager *memoryManager
 	workerPool    map[types.FileContractID]*worker
+
+	// Cache the last price estimation result.
+	lastEstimation modules.RenterPriceEstimation
 
 	// Utilities.
 	cs             modules.ConsensusSet
@@ -188,11 +192,8 @@ type Renter struct {
 	log            *persist.Logger
 	persistDir     string
 	mu             *siasync.RWMutex
-	heapWG         sync.WaitGroup // in-progress chunks join this waitgroup
 	tg             threadgroup.ThreadGroup
 	tpool          modules.TransactionPool
-
-	lastEstimation modules.RenterPriceEstimation // used to cache the last price estimation result
 }
 
 // Close closes the Renter and its dependencies
@@ -274,10 +275,16 @@ func (r *Renter) PriceEstimation() modules.RenterPriceEstimation {
 
 // SetSettings will update the settings for the renter.
 func (r *Renter) SetSettings(s modules.RenterSettings) error {
+	// Set allowance.
 	err := r.hostContractor.SetAllowance(s.Allowance)
 	if err != nil {
 		return err
 	}
+	// Set bandwidth limits.
+	if s.DownloadSpeed < 0 || s.UploadSpeed < 0 {
+		return errors.New("download/upload rate limit can't be below 0")
+	}
+	ratelimit.SetLimits(s.DownloadSpeed, s.UploadSpeed, s.PacketSize)
 
 	r.managedUpdateWorkerPool()
 	return nil
@@ -307,6 +314,12 @@ func (r *Renter) Contracts() []modules.RenterContract { return r.hostContractor.
 
 // CurrentPeriod returns the host contractor's current period
 func (r *Renter) CurrentPeriod() types.BlockHeight { return r.hostContractor.CurrentPeriod() }
+
+// ContractUtility returns the utility field for a given contract, along
+// with a bool indicating if it exists.
+func (r *Renter) ContractUtility(id types.FileContractID) (modules.ContractUtility, bool) {
+	return r.hostContractor.ContractUtility(id)
+}
 
 // PeriodSpending returns the host contractor's period spending
 func (r *Renter) PeriodSpending() modules.ContractorSpending { return r.hostContractor.PeriodSpending() }
@@ -358,7 +371,10 @@ func newRenter(g modules.Gateway, cs modules.ConsensusSet, tpool modules.Transac
 		newDownloads: make(chan struct{}, 1),
 		downloadHeap: new(downloadChunkHeap),
 
-		newUploads: make(chan *file),
+		uploadHeap: uploadHeap{
+			activeChunks: make(map[uploadChunkID]struct{}),
+			newUploads:   make(chan struct{}, 1),
+		},
 
 		workerPool: make(map[types.FileContractID]*worker),
 
@@ -385,8 +401,8 @@ func newRenter(g modules.Gateway, cs modules.ConsensusSet, tpool modules.Transac
 
 	// Spin up the workers for the work pool.
 	r.managedUpdateWorkerPool()
-	go r.threadedRepairScan()
 	go r.threadedDownloadLoop()
+	go r.threadedUploadLoop()
 
 	// Kill workers on shutdown.
 	r.tg.OnStop(func() error {

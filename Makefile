@@ -16,6 +16,7 @@ dependencies:
 	go get -u github.com/NebulousLabs/entropy-mnemonics
 	go get -u github.com/NebulousLabs/errors
 	go get -u github.com/NebulousLabs/go-upnp
+	go get -u github.com/NebulousLabs/ratelimit
 	go get -u github.com/NebulousLabs/threadgroup
 	go get -u github.com/NebulousLabs/writeaheadlog
 	go get -u github.com/klauspost/reedsolomon
@@ -38,7 +39,8 @@ run = .
 pkgs = ./build ./cmd/siac ./cmd/siad ./compatibility ./crypto ./encoding ./modules ./modules/consensus ./modules/explorer \
        ./modules/gateway ./modules/host ./modules/host/contractmanager ./modules/renter ./modules/renter/contractor       \
        ./modules/renter/hostdb ./modules/renter/hostdb/hosttree ./modules/renter/proto ./modules/miner ./modules/wallet   \
-       ./modules/transactionpool ./node ./node/api ./persist ./siatest ./node/api/server ./sync ./types
+       ./modules/transactionpool ./node ./node/api ./persist ./siatest ./siatest/consensus ./siatest/renter               \
+       ./node/api/server ./sync ./types
 
 # fmt calls go fmt on all packages.
 fmt:
@@ -51,9 +53,9 @@ vet: release-std
 
 # will always run on some packages for a while.
 lintpkgs = ./build ./cmd/siac ./cmd/siad ./compatibility ./crypto ./encoding ./modules ./modules/consensus ./modules/explorer \
-           ./modules/gateway ./modules/host ./modules/renter ./modules/renter/contractor ./modules/renter/hostdb \
-           ./modules/renter/hostdb/hosttree ./modules/renter/proto ./modules/wallet ./modules/transactionpool ./node ./node/api/server ./persist \
-           ./siatest
+           ./modules/gateway ./modules/host ./modules/miner ./modules/host/contractmanager ./modules/renter ./modules/renter/contractor ./modules/renter/hostdb \
+           ./modules/renter/hostdb/hosttree ./modules/renter/proto ./modules/wallet ./modules/transactionpool ./node ./node/api ./node/api/server ./persist \
+           ./siatest ./siatest/consensus ./siatest/renter
 lint:
 	golint -min_confidence=1.0 -set_exit_status $(lintpkgs)
 
@@ -61,17 +63,23 @@ lint:
 spellcheck:
 	misspell -error .
 
+# debug builds and installs debug binaries.
+debug:
+	go install -tags='debug profile netgo' $(pkgs)
+debug-race:
+	go install -race -tags='debug profile netgo' $(pkgs)
+
 # dev builds and installs developer binaries.
 dev:
+	go install -tags='dev debug profile netgo' $(pkgs)
+dev-race:
 	go install -race -tags='dev debug profile netgo' $(pkgs)
 
 # release builds and installs release binaries.
 release:
-	go install -tags='debug profile netgo' $(pkgs)
-release-race:
-	go install -race -tags='debug profile netgo' $(pkgs)
-release-std:
 	go install -tags 'netgo' -a -ldflags='-s -w' $(pkgs)
+release-race:
+	go install -race -tags 'netgo' -a -ldflags='-s -w' $(pkgs)
 
 # clean removes all directories that get automatically created during
 # development.

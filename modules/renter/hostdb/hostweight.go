@@ -236,10 +236,10 @@ func versionAdjustments(entry modules.HostDBEntry) float64 {
 	if build.VersionCmp(entry.Version, "1.4.0") < 0 {
 		base = base * 0.99999 // Safety value to make sure we update the version penalties every time we update the host.
 	}
-	if build.VersionCmp(entry.Version, "1.3.1") < 0 {
-		base = base * 0.7
+	if build.VersionCmp(entry.Version, "1.3.2") < 0 {
+		base = base * 0.9
 	}
-	if build.VersionCmp(entry.Version, "1.3.0") < 0 {
+	if build.VersionCmp(entry.Version, "1.3.1") < 0 {
 		base = base / 1000
 	}
 	return base
@@ -313,7 +313,11 @@ func (hdb *HostDB) uptimeAdjustments(entry modules.HostDBEntry) float64 {
 	recentSuccess := entry.ScanHistory[0].Success
 	for _, scan := range entry.ScanHistory[1:] {
 		if recentTime.After(scan.Timestamp) {
-			hdb.log.Critical("Host entry scan history not sorted.")
+			if build.DEBUG {
+				hdb.log.Critical("Host entry scan history not sorted.")
+			} else {
+				hdb.log.Print("WARNING: Host entry scan history not sorted.")
+			}
 			// Ignore the unsorted scan entry.
 			continue
 		}

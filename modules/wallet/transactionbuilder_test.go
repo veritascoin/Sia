@@ -37,7 +37,7 @@ func TestViewAdded(t *testing.T) {
 	if testing.Short() {
 		t.SkipNow()
 	}
-	wt, err := createWalletTester(t.Name(), &ProductionDependencies{})
+	wt, err := createWalletTester(t.Name(), &modules.ProductionDependencies{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,6 +108,9 @@ func TestViewAdded(t *testing.T) {
 		b2.AddTransactionSignature(unfinishedTxn3.TransactionSignatures[sigIndex])
 	}
 	set2, err := b2.Sign(true)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = wt.tpool.AcceptTransactionSet(set2)
 	if err != nil {
 		t.Fatal(err)
@@ -134,7 +137,7 @@ func TestDoubleSignError(t *testing.T) {
 	if testing.Short() {
 		t.SkipNow()
 	}
-	wt, err := createWalletTester(t.Name(), &ProductionDependencies{})
+	wt, err := createWalletTester(t.Name(), &modules.ProductionDependencies{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +175,7 @@ func TestConcurrentBuilders(t *testing.T) {
 	if testing.Short() {
 		t.SkipNow()
 	}
-	wt, err := createWalletTester(t.Name(), &ProductionDependencies{})
+	wt, err := createWalletTester(t.Name(), &modules.ProductionDependencies{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +261,7 @@ func TestConcurrentBuildersSingleOutput(t *testing.T) {
 	if testing.Short() {
 		t.SkipNow()
 	}
-	wt, err := createWalletTester(t.Name(), &ProductionDependencies{})
+	wt, err := createWalletTester(t.Name(), &modules.ProductionDependencies{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,6 +281,9 @@ func TestConcurrentBuildersSingleOutput(t *testing.T) {
 
 	// Send all coins to a single confirmed output for the wallet.
 	unlockConditions, err := wt.wallet.NextAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
 	scBal, _, _ := wt.wallet.ConfirmedBalance()
 	// Use a custom builder so that there is no transaction fee.
 	builder := wt.wallet.StartTransaction()
@@ -366,7 +372,7 @@ func TestParallelBuilders(t *testing.T) {
 	if testing.Short() {
 		t.SkipNow()
 	}
-	wt, err := createWalletTester(t.Name(), &ProductionDependencies{})
+	wt, err := createWalletTester(t.Name(), &modules.ProductionDependencies{})
 	if err != nil {
 		t.Fatal(err)
 	}
