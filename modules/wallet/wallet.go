@@ -116,6 +116,7 @@ type Wallet struct {
 func (w *Wallet) Height() types.BlockHeight {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.syncDB()
 
 	var height uint64
 	err := w.db.View(func(tx *bolt.Tx) error {
