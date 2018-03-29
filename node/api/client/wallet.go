@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -135,6 +136,20 @@ func (c *Client) WalletSweepPost(seed string) (wsp api.WalletSweepPOST, err erro
 	return
 }
 
+// WalletSignPost uses the /wallet/sign api endpoint to sign a transaction.
+func (c *Client) WalletSignPost(txn types.Transaction, toSign map[types.OutputID]types.UnlockHash) (wspr api.WalletSignPOSTResp, err error) {
+	buf := new(bytes.Buffer)
+	err = json.NewEncoder(buf).Encode(api.WalletSignPOSTParams{
+		Transaction: txn,
+		ToSign:      toSign,
+	})
+	if err != nil {
+		return
+	}
+	err = c.post("/wallet/sign", string(buf.Bytes()), &wspr)
+	return
+}
+
 // WalletTransactionsGet requests the/wallet/transactions api resource for a
 // certain startheight and endheight
 func (c *Client) WalletTransactionsGet(startHeight types.BlockHeight, endHeight types.BlockHeight) (wtg api.WalletTransactionsGET, err error) {
@@ -159,5 +174,12 @@ func (c *Client) Wallet033xPost(path, password string) (err error) {
 	values.Set("source", path)
 	values.Set("encryptionpassword", password)
 	err = c.post("/wallet/033x", values.Encode(), nil)
+	return
+}
+
+// WalletUnspentGet requests the /wallet/unspent endpoint and returns all of
+// the unspent outputs related to the wallet.
+func (c *Client) WalletUnspentGet() (wug api.WalletUnspentGET, err error) {
+	err = c.get("/wallet/unspent", &wug)
 	return
 }
