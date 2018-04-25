@@ -494,9 +494,7 @@ func walletsigncmd(txnJSON, toSignJSON string) {
 	}
 
 	// try API first
-	params, _ := json.Marshal(api.WalletSignPOSTParams{Transaction: txn, ToSign: toSign})
-	var wspr api.WalletSignPOSTResp
-	err = postResp("/wallet/sign", string(params), &wspr)
+	wspr, err := httpClient.WalletSignPost(txn, toSign)
 	if err == nil {
 		txn = wspr.Transaction
 	} else {
