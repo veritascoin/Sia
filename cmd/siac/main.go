@@ -19,7 +19,7 @@ var (
 	initPassword           bool   // supply a custom password when creating a wallet
 	renterListVerbose      bool   // Show additional info about uploaded files.
 	renterShowHistory      bool   // Show download history in addition to download queue.
-	walletSignRaw     bool   // Print signed transaction in base64-encoded binary.
+	walletSignRaw          bool   // Print signed transaction in base64-encoded binary.
 )
 
 var (
