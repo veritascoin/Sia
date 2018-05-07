@@ -13,7 +13,7 @@ best service at the lowest price. And since there is no barrier to entry for
 hosts, anyone with spare storage capacity can join the network and start
 making money.
 
-![UI](http://i.imgur.com/iHoGqoL.png)
+![UI](https://raw.githubusercontent.com/veritascoin/Sia/master/veritascoin.png)
 
 Traditional cloud storage has a number of shortcomings. Users are limited to a
 few big-name offerings: Google, Microsoft, Amazon. These companies have little
